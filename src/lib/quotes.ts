@@ -1,0 +1,48 @@
+// One quote per day. Everyone sees the same quote on the same day.
+export const QUOTES = [
+  "Every no gets you one call closer to a yes.",
+  "Dial the next number before the doubt catches up.",
+  "Consistency beats talent on the phone.",
+  "One good conversation can pay for a hundred dead lines.",
+  "You do not need to feel ready to pick up the phone.",
+  "Rejection is the price of the meetings you are about to book.",
+  "Small daily reps build a pipeline nobody can take away.",
+  "Be curious, be brief, be kind, then ask for the meeting.",
+  "The call you avoid is usually the one that matters.",
+  "Today's effort is next month's revenue.",
+  "Slow is fine. Stopped is not.",
+  "Make the call, learn the lesson, make the next one better.",
+  "Quantity gives you practice and practice gives you quality.",
+  "Smile before you dial. They can hear it.",
+  "Listen twice as much as you talk.",
+  "Focus on the next conversation, not the last rejection.",
+  "Every great client started as a stranger on the phone.",
+  "Discipline is making the calls when the mood is missing.",
+  "Curiosity opens more doors than a perfect pitch.",
+  "A calm voice sells more than a loud one.",
+  "Progress is made one dial at a time.",
+  "Ask for the meeting. The worst answer is no, and no costs nothing.",
+  "Prepare for thirty seconds, then make the call.",
+  "Treat every lead like a person, not a number.",
+  "Your pipeline is built in the hours nobody sees.",
+  "Win the morning and the day follows.",
+  "Do not count the hang-ups. Count the dials.",
+  "Persistence turns a cold list into warm relationships.",
+  "Another call, another chance.",
+  "The best time to call was yesterday. The second best is now.",
+  "Confidence comes from making calls, not from waiting.",
+  "One more call before you stop for the day.",
+  "Strong follow-up wins deals that a strong pitch only starts.",
+  "Respect their time and they will give you more of it.",
+  "Clear goals make hard calls easier.",
+  "Make today's numbers something to be proud of.",
+  "Even a short yes starts something big.",
+  "Keep your standards high and your script simple.",
+  "Show up, dial up, follow up.",
+  "The list does not shrink by looking at it.",
+] as const;
+
+export function quoteFor(ymd: string) {
+  const day = Math.floor(Date.parse(`${ymd}T00:00:00Z`) / 86_400_000);
+  return QUOTES[(day * 7) % QUOTES.length]; // 7 and 40 share no factors, so every quote gets used
+}

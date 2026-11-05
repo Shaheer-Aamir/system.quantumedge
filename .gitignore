@@ -1,0 +1,16 @@
+*.backup.sql
+*.db-journal
+*.tsbuildinfo
+.dev.vars
+.env*.local
+.env.local
+.env.prod
+.next
+.open-next
+.seed.tmp.sql
+.wrangler
+backup*.sql
+local.db
+local.db-*
+next-env.d.ts
+node_modules
