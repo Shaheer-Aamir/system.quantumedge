@@ -65,6 +65,13 @@ body {
   }
 }
 
-.nl-badge {
+/* Hide Netlify deploy badge */
+#netlify-badge,
+.nl-badge,
+[data-netlify-badge],
+iframe[src*="netlify"] {
   display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
 }
