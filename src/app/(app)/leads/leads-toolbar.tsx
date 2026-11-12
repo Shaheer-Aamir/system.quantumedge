@@ -21,7 +21,7 @@ function Chip({ active, onClick, children }: { active: boolean; onClick: () => v
   );
 }
 
-export function LeadsToolbar({ filters, people, days }: { filters: LeadFilters; people: { id: string; name: string }[]; days: DayCounts }) {
+export function LeadsToolbar({ filters, people, days, followUps }: { filters: LeadFilters; people: { id: string; name: string }[]; days: DayCounts; followUps: number }) {
   const router = useRouter();
   const [q, setQ] = useState(filters.q);
   const first = useRef(true);
@@ -31,6 +31,7 @@ export function LeadsToolbar({ filters, people, days }: { filters: LeadFilters; 
     const params = new URLSearchParams();
     if (f.q) params.set("q", f.q);
     if (f.date) params.set("date", f.date);
+    if (f.followup) params.set("followup", "1");
     if (f.status) params.set("status", f.status);
     if (f.assigned) params.set("assigned", f.assigned);
     if (f.sort !== "newest") params.set("sort", f.sort);
@@ -60,6 +61,10 @@ export function LeadsToolbar({ filters, people, days }: { filters: LeadFilters; 
         <input id="import-date" type="date" value={filters.date} max={days.today}
           onChange={(e) => go({ date: e.target.value })}
           className={`${selectClass} ${filters.date && filters.date !== days.today && filters.date !== days.yesterday ? "border-ice bg-accent/20" : ""}`} />
+        <span className="mx-1 hidden h-6 w-px bg-line sm:block" aria-hidden="true" />
+        <Chip active={filters.followup} onClick={() => go({ followup: !filters.followup, sort: !filters.followup ? "waiting" : filters.sort === "waiting" ? "newest" : filters.sort })}>
+          <i className="bi bi-telephone-forward" aria-hidden="true" /> Needs follow-up <span className="text-xs text-muted">{followUps}</span>
+        </Chip>
       </div>
 
       <div className="mb-5 flex flex-wrap items-center gap-3">

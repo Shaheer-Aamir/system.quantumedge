@@ -5,6 +5,7 @@ import { eq } from "drizzle-orm";
 import { getDb } from "@/db";
 import { leads, meetings } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth";
+import { syncLeadStatus } from "@/lib/lead-sync";
 import { resolveLead } from "@/lib/leads";
 import { MEETING_STATUS_VALUES, type MeetingStatus } from "@/lib/outcomes";
 import { localInputToMs } from "@/lib/time";
@@ -60,7 +61,9 @@ export async function updateMeetingAction(
     set.startsAt = ms;
   }
   await db.update(meetings).set(set).where(eq(meetings.id, id));
+  if (set.status) await syncLeadStatus(db, meeting.leadId); // a cancelled or no-show meeting no longer counts
   revalidatePath("/calendar");
+  revalidatePath("/leads");
   return {};
 }
 
@@ -71,6 +74,8 @@ export async function deleteMeetingAction(id: string): Promise<{ error?: string 
   if (!meeting) return {};
   if (meeting.adminId !== admin.id && admin.role !== "super_admin") return { error: "You can only delete your own meetings." };
   await db.delete(meetings).where(eq(meetings.id, id));
+  await syncLeadStatus(db, meeting.leadId);
   revalidatePath("/calendar");
+  revalidatePath("/leads");
   return {};
 }

@@ -6,7 +6,7 @@ const MUTED = "var(--muted)";
 const tick = { fill: MUTED, fontSize: 12 };
 export const COLORS = { connected: "var(--ice)", meetings: "#34d399", missed: "#64748b" };
 const OUTCOME_COLORS: Record<string, string> = {
-  no_answer: "#64748b", failed: "#f87171", not_interested: "#fbbf24", follow_up: "var(--ice)", meeting_booked: "#34d399",
+  no_answer: "#64748b", failed: "#f87171", couldnt_talk: "#22d3ee", not_interested: "#fbbf24", follow_up: "var(--ice)", meeting_booked: "#34d399",
 };
 
 function Tip({ active, payload, label, prefix, money }: TooltipContentProps & { prefix?: string; money?: boolean }) {

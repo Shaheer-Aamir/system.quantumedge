@@ -1,6 +1,8 @@
 import { and, eq, gte, lt, sql } from "drizzle-orm";
 import { admins, calls, meetings, payments, projects } from "@/db/schema";
 import { OUTCOMES, isConnected } from "./outcomes";
+import { leads } from "@/db/schema";
+import { NEEDS_FOLLOW_UP } from "./lead-queries";
 import { TZ_OFFSET_MS, daysInMonth, fmtMonthShort, monthRange, shiftYm } from "./time";
 import type { Db } from "@/db/types";
 
@@ -22,7 +24,8 @@ export async function overviewData(db: Db, ym: string, adminId: string) {
   const day = localKey(calls.calledAt, "%Y-%m-%d");
   const payMonth = localKey(payments.receivedAt, "%Y-%m");
 
-  const [byDayOutcome, prevCalls, byAdmin, booked, prevBooked, held, cashRows, closed, prevClosed] = await Promise.all([
+  const latestOutcome = sql`(select "calls"."outcome" from "calls" where "calls"."lead_id" = "leads"."id" order by "calls"."called_at" desc limit 1)`;
+  const [byDayOutcome, prevCalls, byAdmin, booked, prevBooked, held, cashRows, closed, prevClosed, waiting] = await Promise.all([
     db.select({ day, outcome: calls.outcome, n: count }).from(calls).where(callsIn(from, to)).groupBy(day, calls.outcome),
     db.select({ n: count }).from(calls).where(callsIn(pFrom, pTo)),
     db.select({ id: admins.id, name: admins.fullName, user: admins.username, outcome: calls.outcome, n: count })
@@ -35,6 +38,11 @@ export async function overviewData(db: Db, ym: string, adminId: string) {
       .where(and(gte(payments.receivedAt, sixFrom), lt(payments.receivedAt, to), adminId ? eq(projects.ownerId, adminId) : undefined)).groupBy(payMonth),
     db.select({ n: count }).from(projects).where(projectsIn(from, to)),
     db.select({ n: count }).from(projects).where(projectsIn(pFrom, pTo)),
+    // Leads still waiting for another call, right now, for the whole team
+    db.select({
+      followUp: sql<number>`coalesce(sum(case when ${latestOutcome} = 'follow_up' then 1 else 0 end), 0)`,
+      callBack: sql<number>`coalesce(sum(case when ${latestOutcome} = 'couldnt_talk' then 1 else 0 end), 0)`,
+    }).from(leads).where(NEEDS_FOLLOW_UP),
   ]);
 
   // Calls per day, with every day of the month present
@@ -86,5 +94,6 @@ export async function overviewData(db: Db, ym: string, adminId: string) {
     closed: Number(closed[0].n), prevClosed: Number(prevClosed[0].n),
     cashMonths, cashNow, cashPrev,
     admins: [...adminMap.values()].sort((a, b) => b.calls - a.calls),
+    followUps: { followUp: Number(waiting[0].followUp), callBack: Number(waiting[0].callBack) },
   };
 }

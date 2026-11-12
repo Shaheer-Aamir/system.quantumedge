@@ -5,6 +5,7 @@ import { eq } from "drizzle-orm";
 import { getDb } from "@/db";
 import { calls, leads, meetings } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth";
+import { editCall, removeCall, type CallEdit } from "@/lib/call-ops";
 import { resolveLead } from "@/lib/leads";
 import { OUTCOME_VALUES, type Outcome } from "@/lib/outcomes";
 import { localInputToMs } from "@/lib/time";
@@ -51,20 +52,37 @@ export async function logCallAction(_prev: CallState, formData: FormData): Promi
     await db.update(leads).set({ updatedAt: now }).where(eq(leads.id, leadId));
   }
 
-  revalidatePath("/calls");
-  revalidatePath("/calendar");
-  revalidatePath("/leads");
+  refresh();
   return { ok: true };
 }
 
-export async function deleteCallAction(id: string): Promise<{ error?: string }> {
+async function ownCall(id: string) {
   const admin = await requireAdmin();
-  const db = getDb();
-  const call = await db.query.calls.findFirst({ where: eq(calls.id, id) });
+  const call = await getDb().query.calls.findFirst({ where: eq(calls.id, id) });
+  if (call && call.adminId !== admin.id && admin.role !== "super_admin") return { call, error: "You can only change your own calls." } as const;
+  return { call, error: null } as const;
+}
+
+function refresh() {
+  for (const path of ["/calls", "/leads", "/calendar", "/overview"]) revalidatePath(path);
+}
+
+// For a call logged by mistake: removes it, cancels the meeting it booked (if not held yet) and puts the lead back to New if it had no other calls.
+export async function deleteCallAction(id: string): Promise<{ error?: string }> {
+  const { call, error } = await ownCall(id);
   if (!call) return {};
-  if (call.adminId !== admin.id && admin.role !== "super_admin") return { error: "You can only delete your own calls." };
-  await db.delete(calls).where(eq(calls.id, id));
-  revalidatePath("/calls");
-  revalidatePath("/leads");
+  if (error) return { error };
+  await removeCall(getDb(), id);
+  refresh();
+  return {};
+}
+
+export async function updateCallAction(id: string, input: CallEdit): Promise<{ error?: string }> {
+  const { call, error } = await ownCall(id);
+  if (!call) return { error: "This call no longer exists." };
+  if (error) return { error };
+  const result = await editCall(getDb(), id, input);
+  if ("error" in result) return { error: result.error };
+  refresh();
   return {};
 }

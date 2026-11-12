@@ -13,13 +13,17 @@ export const SORTS = [
   { value: "oldest", label: "Oldest first" },
   { value: "company", label: "Company A to Z" },
   { value: "last_called", label: "Recently called" },
+  { value: "waiting", label: "Waiting longest" },
   { value: "most_calls", label: "Most calls" },
 ] as const;
 
 // date is the day (Pakistan time) the lead was added or imported, as YYYY-MM-DD. Empty means all leads.
-export type LeadFilters = { q: string; status: string; assigned: string; sort: string; page: number; date: string; size: number };
+// followup: only leads whose most recent call left them waiting for another call
+export type LeadFilters = { q: string; status: string; assigned: string; sort: string; page: number; date: string; size: number; followup: boolean };
 
 const callCount = sql<number>`(select count(*) from ${calls} where ${calls.leadId} = ${leads.id})`;
+// Written with full table names so it works inside any query. True when the lead still needs another call.
+export const NEEDS_FOLLOW_UP = sql`("leads"."status" in ('new', 'contacted') and (select "calls"."outcome" from "calls" where "calls"."lead_id" = "leads"."id" order by "calls"."called_at" desc limit 1) in ('follow_up', 'couldnt_talk'))`;
 const lastOutcome = sql<string | null>`(select "calls"."outcome" from "calls" where "calls"."lead_id" = "leads"."id" order by "calls"."called_at" desc limit 1)`;
 const lastCalled = sql<number | null>`(select max(${calls.calledAt}) from ${calls} where ${calls.leadId} = ${leads.id})`;
 
@@ -31,6 +35,7 @@ export function parseFilters(sp: Record<string, string | undefined>, adminIds: s
     sort: SORTS.some((s) => s.value === sp.sort) ? sp.sort! : "newest",
     page: Math.max(1, Math.floor(Number(sp.page)) || 1),
     date: isYmd(sp.date) ? sp.date : "",
+    followup: sp.followup === "1",
     size: (PAGE_SIZES as readonly number[]).includes(Number(sp.size)) ? Number(sp.size) : PAGE_SIZES[0],
   };
 }
@@ -49,6 +54,7 @@ function where(f: LeadFilters) {
     const [start, end] = dayRange(f.date);
     parts.push(gte(leads.createdAt, start), lt(leads.createdAt, end));
   }
+  if (f.followup) parts.push(NEEDS_FOLLOW_UP);
   if (f.status) parts.push(eq(leads.status, f.status as "new"));
   if (f.assigned === "none") parts.push(isNull(leads.assignedTo));
   else if (f.assigned) parts.push(eq(leads.assignedTo, f.assigned));
@@ -61,6 +67,7 @@ export async function queryLeads(db: Db, f: LeadFilters) {
     oldest: [asc(leads.createdAt)],
     company: [asc(sql`lower(coalesce(${leads.company}, ${leads.contactName}, ''))`)],
     last_called: [desc(sql`coalesce(${lastCalled}, 0)`), desc(leads.createdAt)],
+    waiting: [asc(sql`coalesce(${lastCalled}, 0)`), desc(leads.createdAt)],
     most_calls: [desc(callCount), desc(leads.createdAt)],
   }[f.sort] ?? [desc(leads.createdAt)];
 
@@ -95,4 +102,10 @@ export async function leadCountsByDay(db: Db, days: string[]) {
   const out: Record<string, number> = Object.fromEntries(days.map((d) => [d, 0]));
   for (const r of rows) if (r.day in out) out[r.day] = Number(r.n);
   return out;
+}
+
+// How many leads are waiting for a follow-up call right now.
+export async function followUpCount(db: Db) {
+  const [row] = await db.select({ n: sql<number>`count(*)` }).from(leads).where(NEEDS_FOLLOW_UP);
+  return Number(row.n);
 }

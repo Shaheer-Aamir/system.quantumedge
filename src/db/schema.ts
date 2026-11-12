@@ -64,7 +64,7 @@ export const calls = sqliteTable(
     id: text("id").primaryKey(),
     adminId: text("admin_id").notNull().references(() => admins.id),
     leadId: text("lead_id").notNull().references(() => leads.id, { onDelete: "cascade" }),
-    outcome: text("outcome", { enum: ["no_answer", "failed", "not_interested", "follow_up", "meeting_booked"] }).notNull(),
+    outcome: text("outcome", { enum: ["no_answer", "failed", "couldnt_talk", "not_interested", "follow_up", "meeting_booked"] }).notNull(),
     notes: text("notes"),
     calledAt: integer("called_at").notNull(),
     createdAt: integer("created_at").notNull(),

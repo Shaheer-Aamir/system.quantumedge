@@ -7,6 +7,7 @@ import { Modal } from "@/components/modal";
 import type { LeadHit } from "@/lib/lead-hit";
 import { googleSearchUrl, leadSearchQuery } from "@/lib/google-search";
 import { LEAD_STATUSES, leadStatusMeta } from "@/lib/lead-status";
+import { outcomeMeta } from "@/lib/outcomes";
 import { fmtDateTime } from "@/lib/time";
 import { bulkUpdateLeadsAction, deleteLeadsAction } from "./actions";
 import { LeadDetail, type LeadRow } from "./lead-detail";
@@ -122,7 +123,14 @@ export function LeadsTable({ rows, people, isSuper }: { rows: LeadRow[]; people:
                   <td className="px-3 py-3"><span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${s.tone}`}>{s.label}</span></td>
                   <td className="px-3 py-3 text-muted">{r.assignedName ?? "Unassigned"}</td>
                   <td className="px-3 py-3 tabular-nums">{r.callCount}</td>
-                  <td className="px-3 py-3 text-muted">{r.lastCalledAt ? fmtDateTime(r.lastCalledAt) : "Never"}</td>
+                  <td className="px-3 py-3 text-muted">
+                    {r.lastCalledAt ? fmtDateTime(r.lastCalledAt) : "Never"}
+                    {r.lastOutcome && (
+                      <span className={`mt-1 flex w-fit items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-medium ${outcomeMeta(r.lastOutcome).tone}`}>
+                        <i className={`bi ${outcomeMeta(r.lastOutcome).icon}`} aria-hidden="true" /> {outcomeMeta(r.lastOutcome).label}
+                      </span>
+                    )}
+                  </td>
                   <td className="px-3 py-3 text-right">
                     <button type="button" onClick={() => setCallLead(r)} aria-label={`Log a call with ${nameOf(r)}`} title="Log a call"
                       className="inline-flex size-9 items-center justify-center rounded-full bg-accent/20 text-ice transition hover:bg-accent/40 focus-visible:outline-2 focus-visible:outline-ice">

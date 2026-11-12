@@ -42,6 +42,7 @@ export default async function OverviewPage({ searchParams }: { searchParams: Pro
   const prevName = fmtMonthLong(shiftYm(month, -1)).split(" ")[0];
   const connectRate = d.totalCalls ? Math.round((d.connected / d.totalCalls) * 100) : 0;
   const maxCalls = Math.max(d.totalCalls, 1);
+  const waitingTotal = d.followUps.followUp + d.followUps.callBack;
 
   const kpis = [
     { label: "Calls made", value: String(d.totalCalls), icon: "bi-telephone", delta: <Delta now={d.totalCalls} prev={d.prevCalls} label={prevName} /> },
@@ -141,6 +142,17 @@ export default async function OverviewPage({ searchParams }: { searchParams: Pro
               </li>
             ))}
           </ul>
+          <Link href="/leads?followup=1&sort=waiting"
+            className="mt-5 block rounded-xl border border-cyan-500/30 bg-cyan-500/10 p-4 transition hover:border-cyan-400/60 focus-visible:outline-2 focus-visible:outline-ice">
+            <div className="flex items-center justify-between gap-3">
+              <span className="flex items-center gap-2 text-sm font-medium"><i className="bi bi-telephone-forward text-cyan-600 dark:text-cyan-300" aria-hidden="true" /> Follow-ups waiting</span>
+              <span className="text-2xl font-semibold tabular-nums">{waitingTotal}</span>
+            </div>
+            <p className="mt-1 text-xs text-muted">
+              {d.followUps.followUp} to follow up, {d.followUps.callBack} to call back (picked up but could not talk). Whole team, right now.
+              <span className="ml-1 text-ice">View leads <i className="bi bi-arrow-right" aria-hidden="true" /></span>
+            </p>
+          </Link>
         </section>
 
         {!adminId && (

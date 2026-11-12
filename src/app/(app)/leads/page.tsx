@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { getDb } from "@/db";
 import { requireAdmin } from "@/lib/auth";
-import { leadCountsByDay, leadStatusCounts, PAGE_SIZES, parseFilters, queryLeads, type LeadFilters } from "@/lib/lead-queries";
+import { followUpCount, leadCountsByDay, leadStatusCounts, PAGE_SIZES, parseFilters, queryLeads, type LeadFilters } from "@/lib/lead-queries";
 import { listAdmins } from "@/lib/queries";
 import { fmtDayLong, shiftYmd, todayYmd } from "@/lib/time";
 import { PageHeader } from "@/components/coming-soon";
@@ -25,6 +25,7 @@ function pageHref(f: LeadFilters, page: number) {
   const p = new URLSearchParams();
   if (f.q) p.set("q", f.q);
   if (f.date) p.set("date", f.date);
+  if (f.followup) p.set("followup", "1");
   if (f.size !== PAGE_SIZES[0]) p.set("size", String(f.size));
   if (f.status) p.set("status", f.status);
   if (f.assigned) p.set("assigned", f.assigned);
@@ -40,8 +41,8 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
   const db = getDb();
   const today = todayYmd();
   const yesterday = shiftYmd(today, -1);
-  const [{ total, rows }, counts, dayCounts] = await Promise.all([
-    queryLeads(db, filters), leadStatusCounts(db, filters.date), leadCountsByDay(db, [today, yesterday]),
+  const [{ total, rows }, counts, dayCounts, followUps] = await Promise.all([
+    queryLeads(db, filters), leadStatusCounts(db, filters.date), leadCountsByDay(db, [today, yesterday]), followUpCount(db),
   ]);
 
   const items: LeadRow[] = rows.map(({ lead, assignedName, assignedUser, callCount, lastCalled, lastOutcome }) => ({
@@ -83,8 +84,14 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
           <span><i className="bi bi-calendar-check mr-2 text-ice" aria-hidden="true" />Showing leads imported on <strong>{fmtDayLong(filters.date)}</strong>. The numbers above are for this day only.</span>
         </p>
       )}
-      <LeadsToolbar filters={filters} people={people} days={{ today, todayCount: dayCounts[today], yesterday, yesterdayCount: dayCounts[yesterday] }} />
-      <LeadsTable key={`${filters.q}${filters.date}${filters.status}${filters.assigned}${filters.sort}${filters.size}${page}`} rows={items} people={people} isSuper={me.role === "super_admin"} />
+      {filters.followup && (
+        <p className="mb-4 text-sm">
+          <i className="bi bi-telephone-forward mr-2 text-ice" aria-hidden="true" />Showing leads waiting for another call: follow-ups, and people who picked up but had no time to talk.
+          {filters.sort === "waiting" && " The ones waiting longest are first."}
+        </p>
+      )}
+      <LeadsToolbar filters={filters} people={people} followUps={followUps} days={{ today, todayCount: dayCounts[today], yesterday, yesterdayCount: dayCounts[yesterday] }} />
+      <LeadsTable key={`${filters.q}${filters.followup}${filters.date}${filters.status}${filters.assigned}${filters.sort}${filters.size}${page}`} rows={items} people={people} isSuper={me.role === "super_admin"} />
 
       {total > 0 && (
         <nav className="mt-5 flex flex-wrap items-center justify-between gap-3 text-sm" aria-label="Pagination">
