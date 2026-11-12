@@ -16,13 +16,19 @@
 /* Brand palette. Dark is the default theme. */
 :root,
 [data-theme="dark"] {
-  --bg: #08080e;          /* Deep Obsidian Black */
-  --surface: #1c1c35;     /* Translucent Dark Indigo */
-  --fg: #ffffff;          /* Pure White */
-  --muted: #b0b5c0;       /* Muted Slate Grey */
+  --bg: #08080e;
+  /* Deep Obsidian Black */
+  --surface: #1c1c35;
+  /* Translucent Dark Indigo */
+  --fg: #ffffff;
+  /* Pure White */
+  --muted: #b0b5c0;
+  /* Muted Slate Grey */
   --line: rgb(176 181 192 / 0.2);
-  --accent: #4d40e5;      /* Quantum Electric Blue */
-  --ice: #8bb3f8;         /* Soft Ice Blue */
+  --accent: #4d40e5;
+  /* Quantum Electric Blue */
+  --ice: #8bb3f8;
+  /* Soft Ice Blue */
   --glow: rgb(77 64 229 / 0.35);
 }
 
@@ -37,8 +43,13 @@
   --glow: rgb(77 64 229 / 0.12);
 }
 
-html { color-scheme: dark; }
-[data-theme="light"] { color-scheme: light; }
+html {
+  color-scheme: dark;
+}
+
+[data-theme="light"] {
+  color-scheme: light;
+}
 
 body {
   background: var(--bg);
@@ -48,5 +59,12 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+  * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+.nl-badge {
+  display: none !important;
 }
