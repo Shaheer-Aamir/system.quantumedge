@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { requireAdmin } from "@/lib/auth";
 import { getTheme } from "@/lib/theme";
 import { Sidebar } from "@/components/sidebar";
-import "./globals.css";
+import "../globals.css";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const admin = await requireAdmin();
