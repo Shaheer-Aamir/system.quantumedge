@@ -3,12 +3,15 @@
 import { useState, useTransition } from "react";
 import { CallForm } from "@/components/call-form";
 import { MeetingForm } from "@/components/meeting-form";
+import { LeadLocalTime } from "@/components/lead-local-time";
 import { Modal } from "@/components/modal";
 import type { LeadHit } from "@/lib/lead-hit";
 import { googleSearchUrl, leadSearchQuery } from "@/lib/google-search";
 import { LEAD_STATUSES, leadStatusMeta } from "@/lib/lead-status";
 import { outcomeMeta } from "@/lib/outcomes";
+import { leadZone } from "@/lib/lead-timezone";
 import { fmtDateTime } from "@/lib/time";
+import { useNow } from "@/lib/use-now";
 import { bulkUpdateLeadsAction, deleteLeadsAction } from "./actions";
 import { LeadDetail, type LeadRow } from "./lead-detail";
 
@@ -22,6 +25,7 @@ export function LeadsTable({ rows, people, isSuper }: { rows: LeadRow[]; people:
   const [meetingLead, setMeetingLead] = useState<LeadRow | null>(null);
   const [error, setError] = useState("");
   const [pending, start] = useTransition();
+  const now = useNow();
   const open = rows.find((r) => r.id === openId) ?? null;
   const allOnPage = rows.length > 0 && rows.every((r) => selected.includes(r.id));
 
@@ -82,7 +86,7 @@ export function LeadsTable({ rows, people, isSuper }: { rows: LeadRow[]; people:
       {error && <p role="alert" className="mb-3 text-sm text-red-600 dark:text-red-300">{error}</p>}
 
       <div className="overflow-x-auto rounded-2xl border border-line bg-surface/40">
-        <table className="w-full min-w-[60rem] text-left text-sm">
+        <table className="w-full min-w-[68rem] text-left text-sm">
           <thead className="border-b border-line text-xs text-muted">
             <tr>
               <th className="w-10 px-4 py-3">
@@ -91,6 +95,7 @@ export function LeadsTable({ rows, people, isSuper }: { rows: LeadRow[]; people:
               </th>
               <th className="px-3 py-3 font-medium">Lead</th>
               <th className="px-3 py-3 font-medium">Phone</th>
+              <th className="px-3 py-3 font-medium">Local time</th>
               <th className="px-3 py-3 font-medium">Status</th>
               <th className="px-3 py-3 font-medium">Assigned</th>
               <th className="px-3 py-3 font-medium">Calls</th>
@@ -120,6 +125,7 @@ export function LeadsTable({ rows, people, isSuper }: { rows: LeadRow[]; people:
                     </div>
                   </td>
                   <td className="px-3 py-3 tabular-nums">{r.phone}</td>
+                  <td className="px-3 py-3"><LeadLocalTime zone={leadZone(r)} now={now} /></td>
                   <td className="px-3 py-3"><span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${s.tone}`}>{s.label}</span></td>
                   <td className="px-3 py-3 text-muted">{r.assignedName ?? "Unassigned"}</td>
                   <td className="px-3 py-3 tabular-nums">{r.callCount}</td>
