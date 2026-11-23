@@ -15,10 +15,12 @@ export function ExportCalls({ today, day, people, adminId }: { today: string; da
   const [from, setFrom] = useState(monthStart);
   const [to, setTo] = useState(today);
   const [admin, setAdmin] = useState(adminId);
+  const [type, setType] = useState<"full" | "overview">("full");
 
   const valid = isYmd(from) && isYmd(to) && from <= to;
   const params = new URLSearchParams({ from, to });
   if (admin) params.set("a", admin);
+  if (type === "overview") params.set("type", "overview");
 
   const presets = [
     { label: "This month", from: monthStart, to: today },
@@ -46,6 +48,19 @@ export function ExportCalls({ today, day, people, adminId }: { today: string; da
             })}
           </div>
 
+          <fieldset className="space-y-2">
+            <legend className="mb-1 text-sm font-medium">What to export</legend>
+            {([
+              { value: "full", title: "Full report", text: "Every call, plus the day-by-day overview" },
+              { value: "overview", title: "Overview only", text: "One row per day with the weekday, calls made, and which days had none" },
+            ] as const).map((o) => (
+              <label key={o.value} className={`flex cursor-pointer items-start gap-3 rounded-xl border p-3 text-sm transition ${type === o.value ? "border-ice bg-accent/10" : "border-line hover:bg-fg/5"}`}>
+                <input type="radio" name="ex-type" value={o.value} checked={type === o.value} onChange={() => setType(o.value)} className="mt-0.5 size-4 accent-[#4d40e5]" />
+                <span><span className="block font-medium">{o.title}</span><span className="text-muted">{o.text}</span></span>
+              </label>
+            ))}
+          </fieldset>
+
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
               <label htmlFor="ex-from" className="text-sm font-medium">From</label>
@@ -66,7 +81,7 @@ export function ExportCalls({ today, day, people, adminId }: { today: string; da
 
           <p className="text-sm text-muted">
             {valid
-              ? <>Calls from <strong className="text-fg">{fmtDayLong(from)}</strong>{from !== to && <> to <strong className="text-fg">{fmtDayLong(to)}</strong></>}. Dates and times are in Pakistan time. The file has a Calls sheet and a Summary sheet (per day and per caller).</>
+              ? <>Calls from <strong className="text-fg">{fmtDayLong(from)}</strong>{from !== to && <> to <strong className="text-fg">{fmtDayLong(to)}</strong></>}. Dates and times are in Pakistan time. {type === "overview" ? "Weekends are shaded grey and weekdays with no calls red." : "The file has a Calls sheet and an Overview sheet (per day and per caller)."}</>
               : "Pick a start date that is on or before the end date."}
           </p>
 

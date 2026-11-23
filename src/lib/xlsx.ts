@@ -4,7 +4,9 @@ import { strToU8, zipSync } from "fflate";
 // Text is stored as text, which keeps phone numbers such as +61 412 345 678 or 0412... exactly as they are.
 
 export type Cell = string | number | null | undefined;
-export type Sheet = { name: string; rows: Cell[][]; widths?: number[]; headerRows?: number[]; boldRows?: number[]; filter?: boolean };
+// Ready-made row looks for Sheet.rowStyles.
+export const ROW = { weekend: 4, empty: 5 } as const;
+export type Sheet = { name: string; rows: Cell[][]; widths?: number[]; headerRows?: number[]; boldRows?: number[]; rowStyles?: Record<number, number>; filter?: boolean };
 
 const esc = (s: string) =>
   s.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -17,18 +19,20 @@ function col(n: number) {
 
 const safeName = (n: string) => n.replace(/[\[\]:*?/\\]/g, " ").trim().slice(0, 31) || "Sheet";
 
-// Styles: 0 plain, 1 header (white bold on dark blue), 2 wrapped text, 3 bold
+// Styles: 0 plain, 1 header (white bold on dark blue), 2 wrapped text, 3 bold, 4 grey row (weekend), 5 red row (no calls)
 const STYLES = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
 <fonts count="3"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts>
-<fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF1F3A8A"/><bgColor indexed="64"/></patternFill></fill></fills>
+<fills count="5"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF1F3A8A"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFE5E7EB"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFFDE2E2"/><bgColor indexed="64"/></patternFill></fill></fills>
 <borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>
 <cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
-<cellXfs count="4">
+<cellXfs count="6">
 <xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"><alignment vertical="top"/></xf>
 <xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1"><alignment vertical="center"/></xf>
 <xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"><alignment vertical="top" wrapText="1"/></xf>
 <xf numFmtId="0" fontId="2" fillId="0" borderId="0" xfId="0" applyFont="1"><alignment vertical="top"/></xf>
+<xf numFmtId="0" fontId="0" fillId="3" borderId="0" xfId="0" applyFill="1"><alignment vertical="top"/></xf>
+<xf numFmtId="0" fontId="0" fillId="4" borderId="0" xfId="0" applyFill="1"><alignment vertical="top"/></xf>
 </cellXfs>
 <cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>
 </styleSheet>`;
@@ -39,7 +43,7 @@ function sheetXml(s: Sheet) {
   const cols = Math.max(1, ...s.rows.map((r) => r.length));
   const widths = (s.widths ?? []).map((w, i) => `<col min="${i + 1}" max="${i + 1}" width="${w}" customWidth="1"/>`).join("");
   const rows = s.rows.map((r, ri) => {
-    const style = header.has(ri) ? 1 : bold.has(ri) ? 3 : 0;
+    const style = header.has(ri) ? 1 : (s.rowStyles?.[ri] ?? (bold.has(ri) ? 3 : 0));
     const cells = r.map((v, ci) => {
       if (v === null || v === undefined || v === "") return style ? `<c r="${col(ci)}${ri + 1}" s="${style}"/>` : "";
       const ref = `${col(ci)}${ri + 1}`;

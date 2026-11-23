@@ -7,12 +7,14 @@ import { leadStatusMeta } from "@/lib/lead-status";
 import { OUTCOMES, isConnected, outcomeMeta } from "@/lib/outcomes";
 import { listAdmins } from "@/lib/queries";
 import { dayRange, fmtTime, isYmd, shiftYmd, todayYmd, ymdOf } from "@/lib/time";
-import { buildXlsx, type Cell } from "@/lib/xlsx";
+import { ROW, buildXlsx, type Cell } from "@/lib/xlsx";
 
 const MAX_DAYS = 366;
 
-// GET /calls/export?from=YYYY-MM-DD&to=YYYY-MM-DD&a=<admin id>&o=<outcome>
+// GET /calls/export?from=YYYY-MM-DD&to=YYYY-MM-DD&a=<admin id>&o=<outcome>&type=overview
 // Downloads the calls logged in that range (Pakistan time) as an Excel file. No dates means the current month so far.
+// type=overview gives only the day-by-day overview (no list of individual calls).
+const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 export async function GET(req: Request) {
   await requireAdmin();
   const sp = new URL(req.url).searchParams;
@@ -24,6 +26,7 @@ export async function GET(req: Request) {
   const days = Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000) + 1;
   if (days > MAX_DAYS) return new Response(`Choose a range of at most ${MAX_DAYS} days.`, { status: 400 });
 
+  const overviewOnly = sp.get("type") === "overview";
   const people = await listAdmins();
   const adminId = people.some((p) => p.id === sp.get("a")) ? sp.get("a")! : "";
   const outcome = OUTCOMES.some((o) => o.value === sp.get("o")) ? sp.get("o")! : "";
@@ -52,7 +55,7 @@ export async function GET(req: Request) {
     ]);
   }
 
-  // Summary: one row per day (including days with no calls), then one row per caller.
+  // Overview: one row per day of the range (days with no calls included), then one row per caller.
   type Tally = { calls: number; connected: number; failed: number; meetings: number };
   const blank = (): Tally => ({ calls: 0, connected: 0, failed: 0, meetings: 0 });
   const add = (t: Tally, o: string) => {
@@ -71,25 +74,45 @@ export async function GET(req: Request) {
     add(perCaller.get(name)!, r.call.outcome);
     add(total, r.call.outcome);
   }
-  const line = (label: string, t: Tally): Cell[] => [label, t.calls, t.connected, t.failed, t.meetings];
-  const summary: Cell[][] = [
-    ["Date", "Calls made", "Connected", "No answer or failed", "Meetings booked"],
-    ...[...perDay].map(([d, t]) => line(d, t)),
-    line("Total", total),
-    [],
-    ["Caller", "Calls made", "Connected", "No answer or failed", "Meetings booked"],
-    ...[...perCaller].sort((a, b) => b[1].calls - a[1].calls).map(([n, t]) => line(n, t)),
-  ];
 
-  const bytes = buildXlsx([
+  const overview: Cell[][] = [["Date", "Day", "Calls made", "Connected", "No answer or failed", "Meetings booked", "Note"]];
+  const rowStyles: Record<number, number> = {};
+  let weekdays = 0, weekdaysWithCalls = 0, weekendDays = 0, weekendDaysWithCalls = 0;
+  for (const [d, t] of perDay) {
+    const dow = new Date(`${d}T00:00:00Z`).getUTCDay();
+    const weekend = dow === 0 || dow === 6;
+    if (weekend) { weekendDays++; if (t.calls) weekendDaysWithCalls++; } else { weekdays++; if (t.calls) weekdaysWithCalls++; }
+    const note = weekend ? (t.calls ? "Weekend (calls made)" : "Weekend") : t.calls ? "" : "No calls";
+    if (weekend) rowStyles[overview.length] = ROW.weekend;
+    else if (!t.calls) rowStyles[overview.length] = ROW.empty;
+    overview.push([d, DAY_NAMES[dow], t.calls, t.connected, t.failed, t.meetings, note]);
+  }
+  const totalRow = overview.length;
+  overview.push(["Total", `${perDay.size} days`, total.calls, total.connected, total.failed, total.meetings, ""]);
+  overview.push([]);
+  overview.push(["Weekdays with calls", `${weekdaysWithCalls} of ${weekdays}`]);
+  overview.push(["Weekdays with no calls", weekdays - weekdaysWithCalls]);
+  overview.push(["Weekend days", weekendDays]);
+  if (weekendDaysWithCalls) overview.push(["Weekend days with calls", weekendDaysWithCalls]);
+  overview.push([]);
+  const callerHeader = overview.length;
+  overview.push(["Caller", "", "Calls made", "Connected", "No answer or failed", "Meetings booked", ""]);
+  for (const [n, t] of [...perCaller].sort((a, b) => b[1].calls - a[1].calls)) overview.push([n, "", t.calls, t.connected, t.failed, t.meetings, ""]);
+
+  const overviewSheet = {
+    name: "Overview", rows: overview, widths: [20, 14, 12, 12, 20, 17, 22],
+    headerRows: [0, callerHeader], boldRows: [totalRow], rowStyles,
+  };
+  const bytes = buildXlsx(overviewOnly ? [overviewSheet] : [
     { name: "Calls", rows: callRows, widths: [12, 11, 18, 28, 22, 18, 28, 24, 50, 15, 18], filter: true },
-    { name: "Summary", rows: summary, widths: [20, 12, 12, 20, 16], headerRows: [0, perDay.size + 3], boldRows: [perDay.size + 1] },
+    overviewSheet,
   ]);
+  const fileName = `calls${overviewOnly ? "-overview" : ""}_${from}_to_${to}.xlsx`;
 
   return new Response(new Blob([bytes as BlobPart]), {
     headers: {
       "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      "Content-Disposition": `attachment; filename="calls_${from}_to_${to}.xlsx"`,
+      "Content-Disposition": `attachment; filename="${fileName}"`,
       "Cache-Control": "no-store",
     },
   });
