@@ -19,6 +19,7 @@
     "@libsql/client": "^0.18.0",
     "bootstrap-icons": "^1.13.2",
     "drizzle-orm": "^0.45.4",
+    "fflate": "^0.8.3",
     "next": "^15.5.28",
     "papaparse": "^5.7.0",
     "react": "^19.3.1",

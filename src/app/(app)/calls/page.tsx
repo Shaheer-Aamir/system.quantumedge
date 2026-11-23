@@ -12,6 +12,7 @@ import { PageHeader } from "@/components/coming-soon";
 import { ghostBtn } from "@/components/form-styles";
 import { CallLogger } from "./call-logger";
 import { DayPicker } from "./day-picker";
+import { ExportCalls } from "./export-calls";
 import { CallsList } from "./calls-list";
 import type { CallRowData } from "./call-edit-form";
 
@@ -85,7 +86,10 @@ export default async function CallsPage({ searchParams }: { searchParams: Promis
     <>
       <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
         <PageHeader title="Daily calls" description={fmtDayLong(day)} />
-        <CallLogger preselected={preselected} defaultOpen={!!preselected} />
+        <div className="flex flex-wrap gap-3">
+          <ExportCalls today={today} day={day} people={people} adminId={adminId} />
+          <CallLogger preselected={preselected} defaultOpen={!!preselected} />
+        </div>
       </div>
 
       <div className="mb-6 flex flex-wrap items-center gap-3">
